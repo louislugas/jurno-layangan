@@ -2,7 +2,7 @@
 	import BezierEasing from 'bezier-easing'
 	import {onMount} from 'svelte'
 	import { swipe, tap, composedGesture, press, scroll, pan } from 'svelte-gestures';
-	import {scaleLinear} from 'd3'
+	import {axisLeft, scaleLinear} from 'd3'
 	import supabase from '$lib/db'
 
 	let inputName, inputForm, leaderBoard, inputtext, inputbutton
@@ -37,29 +37,29 @@
             }
         ).subscribe()
 
-	const easingUp = BezierEasing(0.61, 1, 0.88, 1) //easeOutSine
-	const easingDn = BezierEasing(0.12, 0, 0.39, 0) //easeInSine 
+	// const easingUp = BezierEasing(0.61, 1, 0.88, 1) //easeOutSine
+	// const easingDn = BezierEasing(0.12, 0, 0.39, 0) //easeInSine 
+
+	const easingUp = BezierEasing(0.22, 1, 0.36, 1) //easeOutQuint
+	const easingDn = BezierEasing(0.64, 0, 0.78, 0) //easeInQuint
 
 	let clientw, clienth
 	let w = 300, h = 400
 	let pw = 40, ph = 40
 	let animId, moveId
-	let canvas, playerKite, lifebar, cloud = [], star = [], c
+	let canvas, playerKite, cloud = [], star = [], c
 	let up = false
 	let height
 	let speed = 10
 	let startJump, newHeight, startFall
-	let swipedirection
-	let speedlife = 0.1
 	let score = 0
-	let duration = 250
+	let duration = 400
 	let lifewidth = w
 	let kitePosY
 	let scaleX
 	let kitePosX = 3, targetKitePos
 	let lose = false
 	let direction
-	let type = null
 	let start = false
 	let scoreText, timerText
 	let lifeMultiplier
@@ -75,7 +75,8 @@
 	let level = 1
 	let levelArray= [5, 2, 1]
 	let tails = []
-	let tail
+	let offset = 0
+	let timerInterval
 
 	onMount(async() => {
 		await getData()
@@ -125,11 +126,8 @@
 
 		c = canvas.getContext("2d")
 		
-		playerKite = new Player(c, kitePosX,kitePosY, pw, ph)
+		playerKite = new Player(c, scaleX(kitePosX)-(pw/2),kitePosY, pw, ph)
 		playerKite.draw()
-
-		lifebar = new LifeBar(c)
-		lifebar.draw()
 
 		scoreText = new Score(c)
 		scoreText.draw()
@@ -165,17 +163,71 @@
 	function startGame() {
 		dialog2.close()
 		dialog2.style.display="none"
+		
+		tails = []
 
 		animId = window.requestAnimationFrame(animateStart)
 
-		setInterval(() => {
+		timerInterval = setInterval(() => {
 			startTimer--
 		}, 1000)
 		setTimeout(() => {
+			clearInterval(timerInterval)
 			animId = window.requestAnimationFrame(animateFall)
 			start = true
 		},3000)
 		
+	}
+
+	function restartGame() {
+		console.log("restart")
+		lose = false
+
+		dialog3.close()
+		dialog3.style.display="none"
+
+		tails = []
+
+		// reset all stats
+		score = 0
+		startTimer = 3
+		height = clienth/2 - ph
+		kitePosY = (clienth-ph)-height
+
+		playerKite = new Player(c, scaleX(kitePosX)-(pw/2),kitePosY, pw, ph)
+		playerKite.draw()
+
+		scoreText = new Score(c)
+		scoreText.draw()
+
+		timerText = new Timer(c)
+		timerText.draw()
+
+		clouds.forEach((d,i) => {
+			cloud[i] = new Cloud(c,d.x,d.y)
+			cloud[i].draw() 
+		})
+
+		stars.forEach((d,i) => {
+			star[i] = new Star(c, scaleX(d.x), d.y, 20, level)
+			star[i].draw() 
+		})
+
+		debugHeight.forEach((d,i) => {
+			debug[i] = new Height(c, d.height, d.height*level, i)
+			debug[i].draw()
+		})
+
+		animId = window.requestAnimationFrame(animateStart)
+
+		timerInterval = setInterval(() => {
+			startTimer--
+		}, 1000)
+		setTimeout(() => {
+			clearInterval(timerInterval)
+			animId = window.requestAnimationFrame(animateFall)
+			start = true
+		},3000)
 	}
 
 	function animateStart() {
@@ -187,26 +239,10 @@
 			d.draw()
 		})
 		playerKite.draw()
-		lifebar.draw()
 		scoreText.draw()
 		timerText.update()
 		animId = window.requestAnimationFrame(animateStart)
 	}
-
-	// function animateFallLose() {
-	// 	c.clearRect(0,0,canvas.width, canvas.height)
-	// 	cloud.forEach((d) => {
-	// 		d.draw()
-	// 	})
-	// 	star.forEach((d) => {
-	// 		d.draw()
-	// 	})
-	// 	playerKite.fall()
-	// 	playerKite.draw()
-	// 	// lifebar.drop()
-	// 	scoreText.draw()
-	// 	animId = window.requestAnimationFrame(animateFall)
-	// }
  
 	function animateFall(timestep) {
 		if(startJump == undefined) {
@@ -226,7 +262,8 @@
 			debug.forEach((d)=> {
 				d.draw()
 			})
-			let tail = new Trail(c, scaleX(playerKite.x), playerKite.y)
+
+			let tail = new Trail(c, playerKite.x, playerKite.y)
 			tails.push(tail)
 
 			tails = tails.filter(d => d.opacity > 0)
@@ -237,7 +274,6 @@
 			})
 			playerKite.fall(ease)
 			playerKite.draw()
-			// lifebar.drop()
 			scoreText.draw()
 			animId = window.requestAnimationFrame(animateFall)
 		} else {
@@ -257,7 +293,6 @@
 		let ease = easingUp(dur/duration)		
 		if (dur < duration) {
 			c.clearRect(0,0,canvas.width, canvas.height)
-			speedlife=0.3
 			cloud.forEach((d) => {
 				if (playerKite.y <= clienth/5*2) {
 					score++
@@ -309,26 +344,26 @@
 
 			star.forEach((d, i) => {
 
-				if (playerKite.y <= clienth/5*2) {
-					d.update(ease)
-					d.draw()
-					if (d.x > scaleX(playerKite.x)-(pw/4) 
-						&& d.x < scaleX(playerKite.x)+(pw/4) ) {
-						if(d.y > playerKite.y +(ph/4)
-							&& d.y < playerKite.y + (ph*3/4)) {
-							if (!d.hit) {
-									if (lifewidth < clientw) {
-										lifewidth +=10*lifeMultiplier
-									} else if (lifewidth >= clientw - 10 && lifewidth < clientw) {
-										lifewidth = clientw
-									}
+			if (playerKite.y <= clienth/5*2) {
+				d.update(ease)
+				d.draw()
+				if (d.x > scaleX(playerKite.x)-(pw/4) 
+					&& d.x < scaleX(playerKite.x)+(pw/4) ) {
+					if(d.y > playerKite.y +(ph/4)
+						&& d.y < playerKite.y + (ph*3/4)) {
+						if (!d.hit) {
+								if (lifewidth < clientw) {
+									lifewidth +=10*lifeMultiplier
+								} else if (lifewidth >= clientw - 10 && lifewidth < clientw) {
+									lifewidth = clientw
 								}
-								d.delete()
 							}
-					}
-				} else {
-					d.draw()
+							d.delete()
+						}
 				}
+			} else {
+				d.draw()
+			}
 				
 			})
 
@@ -348,7 +383,7 @@
 					d.draw()
 				}
 			})
-			let tail = new Trail(c, scaleX(playerKite.x), playerKite.y)
+			let tail = new Trail(c, playerKite.x, playerKite.y)
 			tails.push(tail)
 
 			tails = tails.filter(d => d.opacity > 0)
@@ -359,12 +394,10 @@
 			})
 			playerKite.jump(ease)
 			playerKite.draw()
-			// lifebar.drop()
 			scoreText.update()
 			animId = window.requestAnimationFrame(animateJump)
 		}
 		else {
-			speedlife = 0.1
 			window.cancelAnimationFrame(animId)
 			up = false
 			animId = window.requestAnimationFrame(animateFall)
@@ -375,12 +408,18 @@
 	}
  
 	function animateSide() {
-		if(direction == "left") {
-			playerKite.left()
+		
+		if (direction == "left") {
+			window.cancelAnimationFrame(moveId)
+			playerKite.left(offset)
 			moveId = window.requestAnimationFrame(animateSide) 
 		} else if (direction == "right") {
-			playerKite.right()
+			window.cancelAnimationFrame(moveId)
+			playerKite.right(offset)
 			moveId = window.requestAnimationFrame(animateSide)
+		}
+		if (playerKite.x+pw < 0 || playerKite.x > clientw) {
+			lose = true
 		}
 	}
 
@@ -457,9 +496,9 @@
 		this.radius=25
 		
 		this.draw = () => {
-			c.fillStyle = `rgba(255,255,0,${this.opacity})`
+			c.fillStyle = `rgba(255,255,255,${this.opacity})`
 			c.beginPath()
-			c.arc(this.x,this.y+(ph/2),this.radius,0,Math.PI*2)
+			c.arc(this.x+(pw/2),this.y+(ph/2),this.radius,0,Math.PI*2)
 			c.fill()
 			c.closePath()
 		}
@@ -468,10 +507,11 @@
 				this.opacity-=0.005	
 			}
 			if (this.radius > 0) {
-				this.radius--
+				this.radius-=0.5
 			}
 		}
 	}
+
 	function Player(c, x, y, pw, ph) {
 		this.x = x
 		this.y = y
@@ -480,7 +520,7 @@
 
 		this.draw = () => {
 			c.fillStyle="red"
-			c.fillRect(scaleX(this.x)-(this.w/2),this.y,this.w,this.h)
+			c.fillRect(this.x,this.y,this.w,this.h)
 		}
 
 		this.jump = (ease) => {
@@ -498,41 +538,14 @@
 			this.y = clienth
 		}
 
-		this.left = () => {
-			if(this.x > targetKitePos) {
-			this.x-=0.1
-			} else {
-				this.x = Math.round(this.x)
-				window.cancelAnimationFrame(moveId) 
-			}
+		this.left = (d) => {
+			this.x-=(d/50)
 		}
 
-		this.right = () => {
-			if(this.x < targetKitePos) {
-				this.x+=0.1
-			} else {
-				this.x = Math.round(this.x)
-				window.cancelAnimationFrame(moveId) 
-			}
+		this.right = (d) => {
+			this.x+=(d/50)
 		}
 	
-	}
-
-	function LifeBar(c) {
-		this.draw = () => {
-				c.fillStyle="green"
-				c.fillRect(0,0,lifewidth,20)
-			}
-		this.drop = () => {
-			lifewidth-=speedlife
-
-			c.fillStyle="lightgrey"
-			c.fillRect(0,0,clientw,20)
-
-			c.fillStyle="green"
-			c.fillRect(0,0,lifewidth,20)
-			
-		}
 	}
 
 	function Star(c,x,y,s, level) {
@@ -622,91 +635,31 @@
 		}
 	}
 
-	// function keydown(e) {
-	// 	if(start) {
-	// 		if (e.code == "Space" || e.code == "KeyW") {
-	// 			startJump = undefined
-	// 			newHeight = height
-	// 			if (!up) {
-	// 				window.cancelAnimationFrame(animId)
-	// 				animId = window.requestAnimationFrame(animateJump)
-	// 			}
-	// 		}
-	// 		if (e.code == "ArrowRight" || e.code == "ArrowLeft" || e.code == "KeyA" || e.code == "KeyD") {
-	// 			if (e.code == "ArrowRight" || e.code == "KeyD") {
-	// 				if (playerKite.x < 5) {
-	// 					if (targetKitePos < 5 || targetKitePos == undefined) {
-	// 						window.cancelAnimationFrame(moveId) 
-	// 						direction = "right"
-	// 						targetKitePos = Math.round(playerKite.x + 1)
-	// 						moveId = window.requestAnimationFrame(animateSide)
-	// 					}
-						
-						
-	// 				}
-	// 			} else if (e.code == "ArrowLeft" || e.code == "KeyA") {
-	// 				if (playerKite.x > 1) {
-	// 					if (targetKitePos > 1 || targetKitePos == undefined) {
-	// 						window.cancelAnimationFrame(moveId) 
-	// 						direction = "left"
-	// 						targetKitePos = Math.round(playerKite.x - 1)
-	// 						moveId = window.requestAnimationFrame(animateSide)
-	// 					}
-						
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-		
-	// }
-
 	function tapHandler(e) {
-		console.log(e.detail.x, e.detail.y)
-		console.log("tap")
 		if (start) {
-			startJump = undefined
-			newHeight = height
-			if (!up) {
-				window.cancelAnimationFrame(animId)
-				animId = window.requestAnimationFrame(animateJump)
+			if(e.detail.x > clientw/2) {
+				offset = e.detail.x-(clientw/2)
+				// tap on right, move left
+				direction = "left"
+				animateSide()
+			} else if (e.detail.x < clientw/2) {
+				offset = (clientw/2)-e.detail.x
+				// tap on left, move right
+				direction="right"
+				animateSide()
+
+			}
+			if (start) {
+				startJump = undefined
+				newHeight = height
+				if (!up) {
+					window.cancelAnimationFrame(animId)
+					animId = window.requestAnimationFrame(animateJump)
+				}
 			}
 		}
 	}
  
-	function swipeHandler(event) {
-		console.log("swipe")
-		type="swipe"
-		if (event.detail.direction == "left" || event.detail.direction == "right") {
-			if (event.detail.direction == "left") {
-				swipedirection = "left" 
-				if ( playerKite.x > 1) {
-					window.cancelAnimationFrame(moveId) 
-					direction = "left"
-					targetKitePos = Math.round(playerKite.x - 1) 
-					moveId = window.requestAnimationFrame(animateSide)
-				}
-				
-				// setTimeout(() => {
-				// 	swipedirection = null
-				// 	type="idle"
-				// }, 250) 
-				console.log("swipe left")
-			} else if (event.detail.direction == "right") {
-				swipedirection = "right"
-				if (playerKite.x < 5) {
-					window.cancelAnimationFrame(moveId) 
-					direction = "right"
-					targetKitePos = Math.round(playerKite.x + 1) 
-					moveId = window.requestAnimationFrame(animateSide)
-				}
-				// setTimeout(() => {
-				// 	swipedirection = null
-				// 	type="idle"
-				// }, 250)
-				console.log("swipe right")
-			}
-		}
-	}
 
 	function scrollPan(register) {
 		const pressFns = register(press, {
@@ -724,19 +677,17 @@
 		};
 	};
 
-	$: if (lifewidth <= 0 || height <= -ph) { 
-		lose = true
-	}
-
 	$: if (lose) {
 		console.log("lose")
 		window.cancelAnimationFrame(animId)
+		window.cancelAnimationFrame(moveId)
+		start = false
 		dialog3.style.display="flex"
 		dialog3.showModal()
 	}
 
 	$: if((score/100) % 10 == 0 &&  score != 0) {
-		console.log("change")
+		// console.log("change")
 	}
 
 	$: if (leaderBoard) {
@@ -757,8 +708,7 @@
 			bind:this={canvas} 
 			width={w} 
 			height={h}
-			use:swipe={{ timeframe: 300, minSwipeDistance: 60, touchAction: "none"}} 
-			on:swipe={swipeHandler}
+			
 			use:tap={{touchAction:"none"}} 
 			on:tap={tapHandler}
 			use:composedGesture={scrollPan}
@@ -834,7 +784,7 @@
 	</div>
 	{/each}
 	{/if}
-	<button>MAIN LAGI</button>
+	<button on:click={restartGame}>MAIN LAGI</button>
 </dialog>
 
 
