@@ -530,8 +530,9 @@
 		}	
 		
 		this.fall = (ease) => {
+			let e = Math.min(ease,1.5)
 			up = false
-			this.y+=speed*ease
+			this.y+=speed*e
 		}
 
 		this.ground = () => {
