@@ -485,6 +485,10 @@
 		let dur = timestep - startJump 
 		let ease = easingDn(dur/duration)
 
+		if (playerKite.x + pw/2 < 0 || playerKite.x + pw/2 > clientw) {
+			lose = true
+		}	
+
 		if (playerKite.y < clienth) {
 			c.clearRect(0,0,canvas.width, canvas.height)
 			
@@ -560,6 +564,10 @@
 			rText += (distrText/levelDivider) * (speed-(ease*speed))
 			gText += (distgText/levelDivider) * (speed-(ease*speed))
 			bText += (distbStar/levelDivider) * (speed-(ease*speed))
+
+			if (playerKite.x + pw/2 < 0 || playerKite.x + pw/2 > clientw) {
+				lose = true
+			}	
 			
 			if (playerKite.y <= clienth/2) {
 					heightLevel+=speed-(ease*speed)
@@ -763,7 +771,7 @@
 	}
  
 	function animateSide() {
-		if (playerKite.x + pw < 0 || playerKite.x > clientw) {
+		if (playerKite.x + pw/2 < 0 || playerKite.x + pw/2 > clientw) {
 			lose = true
 		}		
 		if (direction == "left") {
