@@ -16,5 +16,7 @@
 - insertData() --> to post/insert score and player name into database
 - updateLeaderBoard --> postgres realtime listening to every new score
 
+All graphics use native HTML5 `<canvas>` method, and all menu are using `<dialog>` element
+
 
 
