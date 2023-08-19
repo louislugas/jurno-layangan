@@ -1,4 +1,4 @@
-# jurno-layangan
+# YangLayang: The Game
 
 ### Main code : 
 [+page.svelte](https://github.com/louislugas/jurno-layangan/blob/main/src/routes/%2Bpage.svelte)
