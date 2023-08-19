@@ -1,7 +1,9 @@
 # jurno-layangan
 
-Main code : src/routes/+page.svelte
-Data :
+### Main code : 
+src/routes/+page.svelte
+
+### Data :
 - db.js --> database library for leaderboard data (supabase)
 - kiteData.js --> kite database for intro
 - obstacle.js --> hardcoded obstacle coordinate (y)
@@ -9,7 +11,7 @@ Data :
 
 ## Functions
 
-Database Function
+### Database Function
 - getData() --> to get score leaderboard data
 - insertData() --> to post/insert score and player name into database
 - updateLeaderBoard --> postgres realtime listening to every new score
