@@ -1,13 +1,13 @@
 # jurno-layangan
 
 ### Main code : 
-src/routes/+page.svelte
+[+page.svelte](https://github.com/louislugas/jurno-layangan/blob/main/src/routes/%2Bpage.svelte)
 
 ### Data :
-- db.js --> database library for leaderboard data (supabase)
-- kiteData.js --> kite database for intro
-- obstacle.js --> hardcoded obstacle coordinate (y)
-- skyColor.js --> hardcoded hex color for sky, cloud, text, and star
+- [db.js](https://github.com/louislugas/jurno-layangan/blob/main/src/lib/db.js) --> database library for leaderboard data (supabase)
+- [kiteData.js](https://github.com/louislugas/jurno-layangan/blob/main/src/lib/kiteData.js) --> kite database for intro
+- [obstacle.js](https://github.com/louislugas/jurno-layangan/blob/main/src/lib/obstacle.js) --> hardcoded obstacle coordinate (y)
+- [skyColor.js](https://github.com/louislugas/jurno-layangan/blob/main/src/lib/skyColor.js) --> hardcoded hex color for sky, cloud, text, and star
 
 ## Functions
 
