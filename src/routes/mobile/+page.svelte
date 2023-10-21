@@ -1,6 +1,7 @@
 <script>
-	import { Player } from '$lib/player'
-	import { Ground, NearBackground, FarBackground } from '$lib/background'
+	import { Player, Kunti, Tali } from '$lib/player'
+	import { Ground, NearBackground, Trotoir, Sky, City, MoonCloud} from '$lib/background'
+	import { Bonus } from '$lib/bonus'
 	import { Obstacle } from '$lib/obstacle'
 	import { onMount } from 'svelte'
 	import BezierEasing from 'bezier-easing'
@@ -19,32 +20,58 @@
 		/** @type {number} animId */ animId,
 		/** @type {Player} player */ player,
 		/** @type {Ground} ground */ ground,
+		/** @type {Sky} background langit */ sky,
+		/** @type {MoonCloud} background langit */ moonCloud,
+		/** @type {City} background gedung kota */ city,
+		/** @type {Kunti} karakter kuntilanak */ kunti,
+		/** @type {Tali} tali */ tali,
+		// /** @type {Tree} background pohon */ tree,
 		/** @type {boolean} play state*/ play = false,
 		/** @type {boolean} jump state*/ jump,
+		/** @type {boolean} collision state*/ collide,
 		/** @type {number|undefined} startJump */ startJump = undefined,
 		/** @type {number|undefined} startFall */ startFall = undefined,
+		/** @type {number|undefined} startHit */ startHit = undefined,
 		/** @type {number} duration */ duration = 500,
 		/** @type {number} elapsed time*/ elapsedTime,
 		/** @type {boolean} status idle or not jumping */ idle = true,
 		/** @type {number} idle position in pixels = canvas.height - player object height */ idlePos = 300,
-		/** @type {number} distance to jump = (canvas.height - player object height) /2 */ distance = 150,
+		/** @type {number} distance to jump = (canvas.height - player object height) /2 */ distance,
 		/** @type {number} player x position */ playerx,
 		/** @type {number} player x position */ playery,
 		/** @type {number} player x position */ playerw,
 		/** @type {number} player x position */ playerh,
+		/** @type {number} enemy w position */ enemyw,
+		/** @type {number} enemy h position */ enemyh,
+		/** @type {number} kunti x position */ kuntix,
+		/** @type {number} kunti y position */ kuntiy,
+		/** @type {number} kunti w position */ kuntiw,
+		/** @type {number} kunti h position */ kuntih,
+		/** @type {number} level number */ level = 0,
 		/** @type {number} score */ score = 0,
 		/** @type {NearBackground} background object near - non */ nearBackground,
-		/** @type {FarBackground} background object far */ farBackground,
+		/** @type {Trotoir} Trotoir canstein object */ trotoir,
 		/** @type {Obstacle} obstacle object */ obs,
-		/** @type {number} background speed */ bgSpeed = 4,
-		/** @type {number} obstacle speed */ obsSpeed = bgSpeed + (bgSpeed/2),
-		/** @type {number} far background speed */ farSpeed = bgSpeed/4,
-		/** @type {Array.<FarBackground>} far background array */ farBgArray = [],
+		/** @type {Bonus} obstacle object */ bonus,
+		/** @type {number} background speed */ bgSpeed,
+		/** @type {number} obstacle speed */ obsSpeed,
+		/** @type {number} far background speed */ farSpeed,
 		/** @type {Array.<NearBackground>} near background array */ nearBgArray = [],
+		/** @type {Array.<Trotoir>} near background array */ trotoirArray = [],
 		/** @type {Array.<Obstacle>} obstacle array */ obstacleArray = [],
+		/** @type {Array.<Bonus>} obstacle array */ bonusArray = [],
+		/** @type {Array.<City>} obstacle array */ cityArray = [],
 		/** @type {boolean} first time play or not*/ firstTime = false,
 		/** @type {boolean} landscape or portrait */ isPortrait = false,
-        /** @type {boolean} fullscreen on portrait */ isPortraitFullscreen = false
+        /** @type {boolean} fullscreen on portrait */ isPortraitFullscreen = false,
+		/** @type {boolean} add level condition */ addLevel = false,
+		/** @type {number} game frame count */ gameFrame = 0,
+		/** @type {number} speed multiplier for different platform calibration */ speedMultiplier = 0.035,
+		/** @type {number} obstacle distance multiplier 1*/ obsMultiplier = 15,
+		/** @type {number} obstacle distance multiplier to random number*/ obsRndMultiplier = 6,
+		/** @type {number} adding speed counter*/ speedCount = 0,
+		/** @type {boolean} hit obstacle condition */ hitObstacle = false,
+		/** @type {boolean} hit bonus condition */ hitBonus = false
 
 	/**
 	 * 
@@ -136,33 +163,58 @@
 		ctx = canvas.getContext("2d")
 
 		if (ctx) {
-			playerw = canvas.height/10
-			playerh = canvas.height/10
+			bgSpeed = canvas.width/9*speedMultiplier
+			obsSpeed = bgSpeed + (bgSpeed/2)
+			farSpeed = bgSpeed/4
+
+			sky = new Sky(ctx, canvas.width, canvas.height)
+			sky.draw()
+
+			moonCloud = new MoonCloud(ctx, 0, canvas.width, canvas.height, 0)
+			moonCloud.draw()
+
+			for(let i = 0; i<3; i++) {
+				city = new City(ctx, i*canvas.height/9*25, canvas.width, canvas.height, i)
+				cityArray.push(city)
+			}
+
+			cityArray.forEach((d) => {
+				d.draw()
+			})
+
+			playerw = canvas.height/9*2.436
+			playerh = canvas.height/9*2.532
+
+			enemyw = canvas.height/9*1.65
+			enemyh = canvas.height/9*2.07
 
 			idlePos = canvas.height/3*2
 
-			playerx = canvas.width/2-(playerw/2)
-			playery = idlePos - playerh
+			playerx = canvas.height/9*4.6
+			playery = canvas.height/9*4.74
 
-			distance = playerh*2
+			kuntix = canvas.height/9*9.78
+			kuntiy = canvas.height/9*2.34
 
-			for(let i = 0; i< 3; i++) {
-				farBackground = new FarBackground(ctx, i*canvas.width*1.5, 0, canvas.width * 1.5, canvas.height, i)
-				farBgArray.push(farBackground)
-			}
+			kuntiw = canvas.height/9*1.71
+			kuntih = canvas.height/9*1.91
 
-			farBgArray.forEach((d) => {
-				d.draw()
-			})
+			distance = canvas.height/3
+
+			tali = new Tali(ctx, playerx, playery, playerw, playerh, canvas.width, canvas.height)
+			tali.draw()
 			
-			player = new Player(ctx, playerx, playery, playerw, playerh)
+			player = new Player(ctx, playerx, playery, playerw, playerh, canvas.width, canvas.height)
 			player.draw()
+
+			kunti = new Kunti(ctx, kuntix, kuntiy, kuntiw, kuntih, canvas.width, canvas.height)
+			kunti.draw()
 
 			ground = new Ground(ctx, idlePos, playerh, canvas.width, canvas.height)
 			ground.draw()
 
 			for(let i = 0; i< 10; i++) {
-				nearBackground = new NearBackground(ctx, canvas.width + i*300, idlePos-(idlePos/2), idlePos/2, idlePos/2, i)
+				nearBackground = new NearBackground(ctx, i*canvas.height/9*5, canvas.height/9*0.908, canvas.height/9*4.32, canvas.height/9*5.092, i)
 				nearBgArray.push(nearBackground)
 			}
 
@@ -170,12 +222,39 @@
 				d.draw()
 			})
 
+			// for(let i = 0; i< 10; i++) {
+			// 	tree = new Tree(ctx, i * 600 + Math.random() * 200, canvas.height/3*2, canvas.width, canvas.height, i)
+			// 	treeArray.push(tree)
+			// }
+
+			// treeArray.forEach((d) => {
+			// 	d.draw()
+			// })
+
+			for(let i = 0; i<100; i++) {
+				trotoir = new Trotoir(ctx, i*canvas.height/9*1.45, 0, canvas.width, canvas.height, i)
+				trotoirArray.push(trotoir)
+			}
+
+			trotoirArray.forEach((d) => {
+				d.draw()
+			})
+
 			for(let i = 0; i< 10; i++) {
-				obs = new Obstacle(ctx, canvas.width + i * 600 + Math.random() * 200, playery, playerw, playerh, i)
+				obs = new Obstacle(ctx, ( 2.5 * canvas.width) + i * canvas.height/9*obsMultiplier + Math.random() * canvas.height/9*obsRndMultiplier, playery, canvas.width, canvas.height, i)
 				obstacleArray.push(obs)
 			}
 
 			obstacleArray.forEach((d) => {
+				d.draw()
+			})
+
+			for(let i = 0; i< 5; i++) {
+				bonus = new Bonus(ctx, ( 3 * canvas.width) + i * canvas.height/9*obsMultiplier*2 + Math.random() * canvas.height/9*obsRndMultiplier, distance, canvas.width, canvas.height, i)
+				bonusArray.push(bonus)
+			}
+
+			bonusArray.forEach((d) => {
 				d.draw()
 			})
 
@@ -194,34 +273,69 @@
 
 	 // @ts-ignore
 	 function animate(timestep) {
-		score += 0.05
+		if (!hitObstacle) {
+			score += 0.05
+		}
 		if (ctx) {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			sky.draw()
+			moonCloud.draw()
 
-			let f = farBgArray.length
-			if ( f == 3 ) {
-				if(farBgArray[f-1].x < canvas.width) {
-					for(let i = 0; i< 3; i++) {
-					farBackground = new FarBackground(ctx, (i+1)*canvas.width * 1.5+canvas.width, 0, canvas.width * 1.5, canvas.height, i)
-						farBgArray.push(farBackground)
+			let c = cityArray.length
+			// console.log(c)
+			if ( c == 3 ) {
+				// console.log(cityArray[c-1].x, cityArray[c-1].w)
+				if(cityArray[c-1].x < canvas.width) {
+					// console.log("city pass")
+					for(let i = 0; i<3; i++) {
+						city = new City(ctx, i*canvas.height/9*25 + cityArray[c-1].w - 2 + canvas.width, canvas.width, canvas.height, i)
+						cityArray.push(city)
 					}
 				}
-			} else if ( f == 6 ) {
-				if(farBgArray[f/2 -1].x + farBgArray[f/2 -1].w < 0) {
-					farBgArray.splice(0,3)
+			} else if ( c == 6 ) {
+				if(cityArray[c/2 -1].x + cityArray[c/2 -1].w < 0) {
+					cityArray.splice(0,3)
 				}
 			}
 
-			farBgArray.forEach((d) => {
+			cityArray.forEach((d) => {
 				d.update(farSpeed)
 				d.draw()
 			})
 
 			ground.draw()
+			
+
+			trotoirArray.forEach((d) => {
+				d.update(obsSpeed * 1.2)
+				d.draw()
+			})
 		
 			if(idle) { // idle
-				player.update(1, playery, distance, jump, idle)
-				player.draw()
+				if (hitObstacle) {
+					if (startHit == undefined) {
+							startHit = gameFrame
+						}
+					bgSpeed-=0.02
+					obsSpeed = bgSpeed + (bgSpeed/2)
+					farSpeed = bgSpeed/4
+					if(startHit) {
+						tali.fall(gameFrame-startHit)
+						tali.draw()
+						player.fall(gameFrame-startHit)
+						player.draw()
+					}
+					setTimeout(() => {
+						// play = false
+						cancelAnimationFrame(animId)
+					}, 1500)
+				} else {
+					// tali.update(1, playery, distance, jump, idle, gameFrame)
+					tali.draw()
+					player.update(1, playery, distance, jump, idle, gameFrame)
+					player.draw()
+				}
+				
 				
 			} 
 			else {
@@ -232,7 +346,9 @@
 						elapsedTime = timestep - startJump
 						if (elapsedTime < duration) {
 							let ease = easeOut(elapsedTime/duration)
-							player.update(ease, playery, distance, jump, idle)
+							tali.update(ease, playery, distance, jump, idle, gameFrame)
+							tali.draw()
+							player.update(ease, playery, distance, jump, idle, gameFrame)
 							player.draw()
 						} else {
 							jump = false
@@ -248,7 +364,9 @@
 						elapsedTime = timestep - startFall
 						if (elapsedTime < duration) {
 							let ease = easeIn(elapsedTime/duration)
-							player.update(ease, playery, distance, jump, idle)
+							tali.update(ease, playery, distance, jump, idle, gameFrame)
+							tali.draw()
+							player.update(ease, playery, distance, jump, idle, gameFrame)
 							player.draw()
 						} else {
 							jump = false
@@ -263,7 +381,7 @@
 			if ( l == 10 ) {
 				if(nearBgArray[l-1].x < canvas.width) {
 					for(let i = 0; i< 10; i++) {
-						nearBackground = new NearBackground(ctx, canvas.width + (i+1)*300, idlePos-(idlePos/2), idlePos/2, idlePos/2, i)
+						nearBackground = new NearBackground(ctx, i*canvas.height/9*5+canvas.width+canvas.height/9*5, canvas.height/9*0.908, canvas.height/9*4.32, canvas.height/9*5.092, i)
 						nearBgArray.push(nearBackground)
 					}
 				}
@@ -278,11 +396,66 @@
 				d.draw()
 			})
 
+			// let tr = treeArray.length
+			// // console.log(tr)
+			// if ( tr == 10 ) {
+			// 	if(treeArray[tr-1].x < canvas.width) {
+			// 		for(let i = 0; i< 10; i++) {
+			// 			tree = new Tree(ctx, i * 600 + Math.random() * 200 +(canvas.width + 200), canvas.height/3*2, canvas.width, canvas.height, i)
+			// 			treeArray.push(tree)
+			// 		}
+			// 	}
+			// } else if ( tr == 20 ) {
+			// 	if(treeArray[tr/2 -1].x + canvas.height/9*1.4 < 0) {
+			// 		treeArray.splice(0,10)
+			// 	}
+			// }
+
+			// treeArray.forEach((d) => {
+			// 	d.update(bgSpeed)
+			// 	d.draw()
+			// })
+
+			let t = trotoirArray.length
+			if ( t == 100 ) {
+				if(trotoirArray[t-1].x < canvas.width) {
+					// console.log("pass")
+					for(let i = 0; i< 100; i++) {
+						trotoir = new Trotoir(ctx, i*canvas.height/9*1.45 + canvas.height/9*1.45, 0, canvas.width, canvas.height, i)
+						trotoirArray.push(trotoir)
+					}
+				}
+			} else if ( t == 200 ) {
+				if(trotoirArray[t/2 -1].x + canvas.height/9*1.4 < 0) {
+					trotoirArray.splice(0,100)
+				}
+			}
+			tali.draw()
+			player.draw()
+			kunti.update(gameFrame)
+			kunti.draw()
+			
+
 			let o = obstacleArray.length
 			if ( o == 10 ) {
 				if(obstacleArray[o-1].x < canvas.width) {
+					if (level % 1 == 0) {
+						if (obsMultiplier > 11) {
+							obsMultiplier--
+						} else {
+							obsMultiplier = 15
+						}
+						if (obsRndMultiplier > 2) {
+							obsRndMultiplier--
+						} else {
+							obsRndMultiplier = 6
+						}
+						// console.log("level ", level)
+						// console.log("obstacle ",obsMultiplier, obsRndMultiplier)
+						// console.log("speed ", bgSpeed, obsSpeed, farSpeed)
+					}
 					for(let i = 0; i< 10; i++) {
-						obs = new Obstacle(ctx, canvas.width + i * 600 + Math.random() * 200 + canvas.width, playery, playerw, playerh, i)
+						obs = new Obstacle(ctx, canvas.width + i * canvas.height/9*obsMultiplier + Math.random() * canvas.height/9*obsRndMultiplier + canvas.width, playery, canvas.width, canvas.height, i)
 						obstacleArray.push(obs)
 					}
 				}
@@ -293,12 +466,40 @@
 			}
 
 			obstacleArray.forEach((d) => {
-				d.update(obsSpeed)
+				if (player.cx1 + player.cx2 > d.x && player.cx1 + player.cx2 < d.x + d.w && d.topY < player.cy) {
+					hitObstacle = true
+				}
+				d.update(obsSpeed, gameFrame)
 				d.draw()
 			})
 
-			player.draw()
 			
+			let b = bonusArray.length
+			// console.log(b)
+			if ( b == 5 ) {
+				if(bonusArray[b-1].x < canvas.width) {
+					for(let i = 0; i< 5; i++) {
+						bonus = new Bonus(ctx, canvas.width + i * canvas.height/9*obsMultiplier*2 + Math.random() * canvas.height/9*obsRndMultiplier + canvas.width, distance, canvas.width, canvas.height, i)
+						bonusArray.push(bonus)
+					}
+				}
+			} else if ( b == 10 ) {
+				if(bonusArray[b/2 -1].x + bonusArray[b/2 -1].w < 0) {
+					bonusArray.splice(0,5)
+				}
+			}
+
+			bonusArray.forEach((d) => {
+				if (player.cx1 + player.cx2 > d.x && player.cx1 + player.cx2 < d.x + d.w && d.topY < player.cy) {
+					hitBonus = true
+				}
+				d.update(obsSpeed, gameFrame)
+				d.draw()
+			})
+
+			
+			
+			gameFrame++
 			animId = requestAnimationFrame(animate)
 		}
 	}
@@ -331,6 +532,7 @@
 					// 	article.msRequestFullscreen();
 					// }
 					article.style.transform = "rotate(90deg)"
+					// @ts-ignore
 					screen.orientation.lock("landscape-primary");
                     if (!isPortraitFullscreen) {
                         isPortraitFullscreen = true
@@ -364,6 +566,27 @@
 	}
 
 
+	$: if (score > 1) {
+		if (Math.round(score) % 100 == 0 ) {
+			if(!addLevel) {
+				level++
+				addLevel = true
+				if (level % 2 == 0) {
+					if(speedCount < 7) {
+						speedCount++
+						bgSpeed+=0.5
+						obsSpeed = bgSpeed + (bgSpeed/2)
+						farSpeed = bgSpeed/4
+					}
+					
+				}
+			}
+		} else {
+			addLevel = false
+		}
+	}
+
+
 
 </script>
 
@@ -373,6 +596,17 @@
 	on:click={handleClick}
 	on:keydown={keydown}
 ></svelte:window>
+
+<svelte:head>
+	<link rel="preload" as="image" href="/images/skater-01.svg">
+	<link rel="preload" as="image" href="/images/kunti-01.svg">
+	<link rel="preload" as="image" href="/images/gedung-background-01.svg">
+	<link rel="preload" as="image" href="/images/gedung-background-02.svg">
+	<link rel="preload" as="image" href="/images/gedung-background-03.svg">
+	<link rel="preload" as="image" href="/images/obstacle_1.svg">
+	<link rel="preload" as="image" href="/images/obstacle_2.svg">
+	<link rel="preload" as="image" href="/images/obstacle_3.svg">
+</svelte:head>
 
 <svelte:body
 	on:fullscreenchange={(e) => {
@@ -399,7 +633,7 @@
             {#if canvas}
                 <h2>w:{canvas.width} x h:{canvas.height}</h2>
             {/if}
-			<Gui {score}/>
+			<Gui {score} {level} {hitObstacle} {hitBonus}/>
 		</div>
 		<div 
 			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	

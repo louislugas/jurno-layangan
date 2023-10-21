@@ -1,9 +1,21 @@
 <script>
     export let score = 0
+    export let level = 0
+    export let hitObstacle = false
+    export let hitBonus = false
 </script>
 
 <section>
+    <h1>Level:{level}</h1>
     <h1>Score:{Math.round(score)}</h1>
+    <p
+        style:background-color={hitObstacle ? "red" : "antiquewhite"}
+        style:color={hitObstacle ? "white" : "black"}
+    >obstacle hit:{hitObstacle}</p>
+    <p
+        style:background-color={hitBonus ? "forestgreen" : "antiquewhite"}
+        style:color={hitBonus ? "white" : "black"}
+    >bonus hit:{hitBonus}</p>
 </section>
 
 <style>
@@ -11,11 +23,19 @@
         width:100%;
         height:100%;
         display: flex;
-        /* align-items: center; */
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
         pointer-events: none;
     }
     h1 {
         font-size: 2rem;
+        margin:0;
+    }
+    p {
+        margin:0;
+        background-color: antiquewhite;
+        font-size: 1rem;
+        padding:0.2rem;
     }
 </style>

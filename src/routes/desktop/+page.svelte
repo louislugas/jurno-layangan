@@ -1,6 +1,6 @@
 <script>
 	import { Player } from '$lib/player'
-	import { Ground, NearBackground, FarBackground } from '$lib/background'
+	import { Ground, NearBackground } from '$lib/background'
 	import { Obstacle } from '$lib/obstacle'
 	import { onMount } from 'svelte'
 	import BezierEasing from 'bezier-easing'
@@ -35,12 +35,10 @@
 		/** @type {number} player x position */ playerh,
 		/** @type {number} score */ score = 0,
 		/** @type {NearBackground} background object near - non */ nearBackground,
-		/** @type {FarBackground} background object far */ farBackground,
 		/** @type {Obstacle} obstacle object */ obs,
 		/** @type {number} background speed */ bgSpeed = 4,
 		/** @type {number} obstacle speed */ obsSpeed = bgSpeed + (bgSpeed/2),
 		/** @type {number} far background speed */ farSpeed = bgSpeed/4,
-		/** @type {Array.<FarBackground>} far background array */ farBgArray = [],
 		/** @type {Array.<NearBackground>} near background array */ nearBgArray = [],
 		/** @type {Array.<Obstacle>} obstacle array */ obstacleArray = [],
 		/** @type {boolean} first time play or not*/ firstTime = false,
@@ -145,15 +143,6 @@
 			playery = idlePos - playerh
 
 			distance = playerh*2
-
-			for(let i = 0; i< 3; i++) {
-				farBackground = new FarBackground(ctx, i*canvas.width*1.5, 0, canvas.width * 1.5, canvas.height, i)
-				farBgArray.push(farBackground)
-			}
-
-			farBgArray.forEach((d) => {
-				d.draw()
-			})
 			
 			player = new Player(ctx, playerx, playery, playerw, playerh)
 			player.draw()
@@ -202,25 +191,6 @@
 		score += 0.05
 		if (ctx) {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-			let f = farBgArray.length
-			if ( f == 3 ) {
-				if(farBgArray[f-1].x < canvas.width) {
-					for(let i = 0; i< 3; i++) {
-					farBackground = new FarBackground(ctx, (i+1)*canvas.width * 1.5+canvas.width, 0, canvas.width * 1.5, canvas.height, i)
-						farBgArray.push(farBackground)
-					}
-				}
-			} else if ( f == 6 ) {
-				if(farBgArray[f/2 -1].x + farBgArray[f/2 -1].w < 0) {
-					farBgArray.splice(0,3)
-				}
-			}
-
-			farBgArray.forEach((d) => {
-				d.update(farSpeed)
-				d.draw()
-			})
 
 			ground.draw()
 		
