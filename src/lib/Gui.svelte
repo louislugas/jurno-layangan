@@ -5,7 +5,7 @@
     export let hitBonus = false
 </script>
 
-<section>
+<!-- <section class="debug">
     <h1>Level:{level}</h1>
     <h1>Score:{Math.round(score)}</h1>
     <p
@@ -16,6 +16,14 @@
         style:background-color={hitBonus ? "forestgreen" : "antiquewhite"}
         style:color={hitBonus ? "white" : "black"}
     >bonus hit:{hitBonus}</p>
+</section> -->
+<section class="score">
+    <h1>
+        {#each Array(7-Math.round(score).toLocaleString().length) as _ }
+            <span>0</span>
+        {/each}
+        <span style:margin-left="-0.6rem">{Math.round(score)}</span>
+    </h1>
 </section>
 
 <style>
@@ -27,10 +35,24 @@
         align-items: center;
         justify-content: flex-start;
         pointer-events: none;
+        position: absolute;
+    }
+    .debug {
+        /* display:none; */
+    }
+    .score {
+        align-items: flex-start;
+        font-family: 'Bungee', sans-serif;
+        color:#eeeeee;
     }
     h1 {
         font-size: 2rem;
         margin:0;
+    }
+    .score > h1 {
+        margin-left:2rem;
+        font-size: 3rem;
+        text-shadow: 4px 4px #051519;
     }
     p {
         margin:0;

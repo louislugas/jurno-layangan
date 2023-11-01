@@ -57,11 +57,7 @@ export class Trotoir {
     }
 
     draw() {
-        if (this.i % 2 == 0) {
-            this.c.fillStyle = "#475f68" 
-        } else {
-            this.c.fillStyle = "#506970"
-        }
+        this.c.fillStyle = "#506970"
         this.c.beginPath()
         this.c.roundRect(this.x, this.vh/9*7.3, this.vh/9*1.4 ,this.vh/9*0.3, [this.vh/9*0.1,this.vh/9*0.1,0,0])
         this.c.fill()

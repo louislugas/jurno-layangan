@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
 	import { Player, Kunti, Tali } from '$lib/player'
 	import { Ground, NearBackground, Trotoir, Sky, City, MoonCloud} from '$lib/background'
 	import { Bonus } from '$lib/bonus'
@@ -6,6 +8,8 @@
 	import { onMount } from 'svelte'
 	import BezierEasing from 'bezier-easing'
 	import Gui from '$lib/Gui.svelte'
+	import PopQuiz from '$lib/PopQuiz.svelte';
+	import GameOver from '$lib/GameOver.svelte';
 
 	const easeOut = BezierEasing(0.33, 1, 0.68, 1);
 	const easeIn  = BezierEasing(0.32, 0, 0.67, 0);
@@ -32,7 +36,7 @@
 		/** @type {number|undefined} startJump */ startJump = undefined,
 		/** @type {number|undefined} startFall */ startFall = undefined,
 		/** @type {number|undefined} startHit */ startHit = undefined,
-		/** @type {number} duration */ duration = 500,
+		/** @type {number} duration */ duration = 30,
 		/** @type {number} elapsed time*/ elapsedTime,
 		/** @type {boolean} status idle or not jumping */ idle = true,
 		/** @type {number} idle position in pixels = canvas.height - player object height */ idlePos = 300,
@@ -71,7 +75,20 @@
 		/** @type {number} obstacle distance multiplier to random number*/ obsRndMultiplier = 6,
 		/** @type {number} adding speed counter*/ speedCount = 0,
 		/** @type {boolean} hit obstacle condition */ hitObstacle = false,
-		/** @type {boolean} hit bonus condition */ hitBonus = false
+		/** @type {boolean} hit bonus condition */ hitBonus = false,
+		/** @type {number} hit bonus type */ hit = 0,
+		/** @type {boolean} popquiz condition */ popquiz = false,
+		/** @type {boolean} popquiz condition */ afterpopquiz = false,
+		/** @type {number} last timestep value */ lastTimestep,
+		/** @type {number} last elapsed value */ lastElapsed,
+		/** @type {number} last background speed parameter*/ lastBgSpeed,
+		/** @type {number} last obstacle speed parameter*/ lastObsSpeed,
+		/** @type {number} last far speed parameter*/ lastFarSpeed,
+		/** @type {boolean} add score condition*/ addScore,
+		/** @type {number} animation frame count*/ animFrame = 0,
+		/** @type {boolean} lose condition*/ lose = false,
+		/** @type {boolean} game ready mounted condition*/ gameReady = false
+
 
 	/**
 	 * 
@@ -80,21 +97,27 @@
 	function keydown(e) {
 		if(play) {
 			if(e.code == "Space") {
-				if(!jump && idle) {
-					jump = true	
-					idle = false
+				if(!hitObstacle) {
+					if(!jump && idle) {
+						jump = true	
+						idle = false
+					}
 				}
 			}
 		}
 	}
 
 	function handleClick() {
+		
 		if(play) {
-			if(!jump && idle) {
-				jump = true	
-				idle = false
+			if(!hitObstacle) {
+				if(!jump && idle) {
+					jump = true	
+					idle = false
+				}
 			}
 		}
+		a++
 	}
 
 	// function resizeButton() {
@@ -262,6 +285,7 @@
 		}
 		firstTime = true
 	}
+
 	onMount(() => {
 		if(screen.orientation.type == "landscape-primary") {
 			isPortrait = false
@@ -269,6 +293,8 @@
 			isPortrait = true
 		}
 		// resizeButton()
+		gameReady = true
+		// console.log("ready")
 	})
 
 	 // @ts-ignore
@@ -312,6 +338,7 @@
 			})
 		
 			if(idle) { // idle
+				// console.log("idle")
 				if (hitObstacle) {
 					if (startHit == undefined) {
 							startHit = gameFrame
@@ -326,6 +353,9 @@
 						player.draw()
 					}
 					setTimeout(() => {
+						lose = true
+					}, 500)
+					setTimeout(() => {
 						// play = false
 						cancelAnimationFrame(animId)
 					}, 1500)
@@ -335,15 +365,19 @@
 					player.update(1, playery, distance, jump, idle, gameFrame)
 					player.draw()
 				}
-				
-				
 			} 
 			else {
 				if (jump) { // jump
+					if (hitObstacle) {
+						jump = false
+						startJump = undefined
+						startFall = undefined
+						idle = true
+					}
 					if (startJump == undefined) {
-						startJump = timestep
+						startJump = animFrame
 					} else {
-						elapsedTime = timestep - startJump
+						elapsedTime = animFrame - startJump
 						if (elapsedTime < duration) {
 							let ease = easeOut(elapsedTime/duration)
 							tali.update(ease, playery, distance, jump, idle, gameFrame)
@@ -359,19 +393,24 @@
 					
 				} else { // fall
 					if (startFall == undefined) {
-						startFall = timestep
+						startFall = animFrame
 					} else {
-						elapsedTime = timestep - startFall
-						if (elapsedTime < duration) {
-							let ease = easeIn(elapsedTime/duration)
-							tali.update(ease, playery, distance, jump, idle, gameFrame)
-							tali.draw()
-							player.update(ease, playery, distance, jump, idle, gameFrame)
-							player.draw()
-						} else {
-							jump = false
-							idle = true
+						if (animFrame) {
+							elapsedTime = animFrame - startFall
+							// console.log(elapsedTime)
+							if (elapsedTime < duration) {
+								let ease = easeIn(elapsedTime/duration)
+								tali.update(ease, playery, distance, jump, idle, gameFrame)
+								tali.draw()
+								player.update(ease, playery, distance, jump, idle, gameFrame)
+								player.draw()
+							} else {
+								jump = false
+								idle = true
+								afterpopquiz = false
+							}
 						}
+						
 					}
 					
 				}
@@ -430,6 +469,7 @@
 					trotoirArray.splice(0,100)
 				}
 			}
+			
 			tali.draw()
 			player.draw()
 			kunti.update(gameFrame)
@@ -490,16 +530,36 @@
 			}
 
 			bonusArray.forEach((d) => {
-				if (player.cx1 + player.cx2 > d.x && player.cx1 + player.cx2 < d.x + d.w && d.topY < player.cy) {
-					hitBonus = true
+				if (player.cx1 + player.cx2 > d.cx && player.cx1 + player.cx2 < d.cx + d.cw && d.cy + d.ch > player.y) {
+					if(!hitBonus) {
+						if (d.type == "bon-1") {
+							d.opacity1 = 0
+							score += 10
+							hitBonus = true
+							hit = 1
+							setTimeout(() => {
+								hit = 0
+								hitBonus = false
+							},1000)
+						} else if (d.type == "bon-2") {
+							hitBonus = true
+							hit = 2
+							setTimeout(() => {
+								hitBonus = false
+								hit = 0
+							},1000)
+						}
+						
+					}
+					
 				}
-				d.update(obsSpeed, gameFrame)
+				d.update(obsSpeed, gameFrame, hitBonus)
 				d.draw()
 			})
-
 			
-			
+			animFrame++
 			gameFrame++
+			lastTimestep = timestep
 			animId = requestAnimationFrame(animate)
 		}
 	}
@@ -567,45 +627,93 @@
 
 
 	$: if (score > 1) {
-		if (Math.round(score) % 100 == 0 ) {
-			if(!addLevel) {
-				level++
-				addLevel = true
-				if (level % 2 == 0) {
-					if(speedCount < 7) {
-						speedCount++
-						bgSpeed+=0.5
-						obsSpeed = bgSpeed + (bgSpeed/2)
-						farSpeed = bgSpeed/4
-					}
-					
-				}
-			}
-		} else {
-			addLevel = false
-		}
+		level = Math.floor(Math.round(score)/100)
+		// console.log(level, "level")				
 	}
 
+	$: if (level > 0 && level % 2 == 0) {
+		if(speedCount < 7) {
+			speedCount++
+			bgSpeed+=0.5
+			obsSpeed = bgSpeed + (bgSpeed/2)
+			farSpeed = bgSpeed/4
 
+			// console.log(speedCount, "speed count")
+			// console.log(bgSpeed, "background speed")
+			// console.log(obsSpeed, "obstacle speed")
+			// console.log(farSpeed, "far background speed")
+		}
+		
+	}
+	
+	$: if (hitBonus && hit == 2) {
+		setTimeout(() => {
+			cancelAnimationFrame(animId)
+			popquiz = true
+		}, 200)
+	}
+	$: if(afterpopquiz && !popquiz) {
+		score +=50
+		animate()
+		afterpopquiz = false
+	}
+
+	$: if (lose) {
+		setTimeout(() => {
+			cancelAnimationFrame(animId)
+		},1000)
+		
+	}
+	// $: console.log(startFall)
 
 </script>
 
 <svelte:window
 	bind:innerHeight={viewportHeight}
 	bind:innerWidth={viewportWidth}
-	on:click={handleClick}
 	on:keydown={keydown}
 ></svelte:window>
 
 <svelte:head>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+	
 	<link rel="preload" as="image" href="/images/skater-01.svg">
 	<link rel="preload" as="image" href="/images/kunti-01.svg">
-	<link rel="preload" as="image" href="/images/gedung-background-01.svg">
-	<link rel="preload" as="image" href="/images/gedung-background-02.svg">
-	<link rel="preload" as="image" href="/images/gedung-background-03.svg">
+	
+
+	<link rel="preload" as="image" href="/images/background-building-01.svg">
+	<link rel="preload" as="image" href="/images/background-building-02.svg">
+	<link rel="preload" as="image" href="/images/background-building-03.svg">
+	<link rel="preload" as="image" href="/images/background-building-04.svg">
+	<link rel="preload" as="image" href="/images/background-building-05.svg">
+	<link rel="preload" as="image" href="/images/background-building-06.svg">
+	<link rel="preload" as="image" href="/images/background-building-07.svg">
+	<link rel="preload" as="image" href="/images/background-building-08.svg">
+	<link rel="preload" as="image" href="/images/background-building-09.svg">
+	<link rel="preload" as="image" href="/images/background-building-10.svg">
+	<link rel="preload" as="image" href="/images/background-building-11.svg">
+	<link rel="preload" as="image" href="/images/background-building-12.svg">
+	<link rel="preload" as="image" href="/images/background-building-13.svg">
+	<link rel="preload" as="image" href="/images/background-building-14.svg">
+	<link rel="preload" as="image" href="/images/background-building-15.svg">
+	<link rel="preload" as="image" href="/images/background-building-16.svg">
+	<link rel="preload" as="image" href="/images/background-building-17.svg">
+	<link rel="preload" as="image" href="/images/background-building-18.svg">
+	<link rel="preload" as="image" href="/images/background-building-19.svg">
+	<link rel="preload" as="image" href="/images/background-building-20.svg">
+	<link rel="preload" as="image" href="/images/background-building-21.svg">
+	<link rel="preload" as="image" href="/images/background-building-22.svg">
+	<link rel="preload" as="image" href="/images/background-building-23.svg">
+	<link rel="preload" as="image" href="/images/background-building-24.svg">
+
 	<link rel="preload" as="image" href="/images/obstacle_1.svg">
 	<link rel="preload" as="image" href="/images/obstacle_2.svg">
 	<link rel="preload" as="image" href="/images/obstacle_3.svg">
+	<link rel="preload" as="image" href="/images/obstacle_4.svg">
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
 </svelte:head>
 
 <svelte:body
@@ -628,16 +736,45 @@
 		</div>
 		<div 
 			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
-			class="gui" >
-            <h1 style:margin="0">Mobile</h1>
+			class="gui" on:click={handleClick}
+			>
+            	<!-- <h1 style:margin="0">Mobile</h1>
             {#if canvas}
                 <h2>w:{canvas.width} x h:{canvas.height}</h2>
-            {/if}
-			<Gui {score} {level} {hitObstacle} {hitBonus}/>
+            {/if} -->
+			{#if play}
+				<Gui {score} {level} {hitObstacle} {hitBonus}/>
+			{/if}
 		</div>
+		{#if popquiz}
 		<div 
 			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
-			class="gui gui-cover" >
+			class="gui">
+            	<!-- <h1 style:margin="0">Mobile</h1>
+            {#if canvas}
+                <h2>w:{canvas.width} x h:{canvas.height}</h2>
+            {/if} -->
+			
+				<PopQuiz bind:popquiz bind:afterpopquiz bind:lose {animate}/>
+			
+		</div>
+		{/if}
+		{#if lose}
+		<div 
+			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
+			class="gui">
+            	<!-- <h1 style:margin="0">Mobile</h1>
+            {#if canvas}
+                <h2>w:{canvas.width} x h:{canvas.height}</h2>
+            {/if} -->
+			
+				<GameOver />
+			
+		</div>
+		{/if}
+		<div 
+			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
+			class="gui gui-cover" style:pointer-events={play ? "none" : "auto"}>
 			{#if !play}
 			<div class="cover">
 				<h1>GAME COVER</h1>
@@ -646,30 +783,32 @@
 					style:align-items="center"
 					class="buttonContainer"
 				>
+				{#if gameReady}
 					{#if !play}
 						{#if !isPortrait}
-							<button on:click={openFullscreen}>Play</button>
+							<button class="start-button" on:click={openFullscreen}>Play</button>
 						{:else if isPortrait}
 							{#if !isPortraitFullscreen}
-								<button on:click={openFullscreen}>Go FullScreen</button>
+								<button class="start-button" on:click={openFullscreen}>Go FullScreen</button>
 							{:else if isPortraitFullscreen}
-								<button on:click={openFullscreen}>Play</button>
+								<button class="start-button" on:click={openFullscreen}>Play</button>
 							{/if}
 						{/if}
-					{/if}
-					{#if play}
+					{:else}
 					<button on:click={openFullscreen}>X</button>
 					{/if}
+				{/if}
+					
 				</div>
 			</div>
 			{:else}
-			<div class="fullscreen">
+			<div class="fullscreen" style:pointer-events="none">
 				<div 
 					style:justify-content="flex-end"
 					style:align-items="flex-start"
 					class="buttonContainer"
 				>
-					<button on:click={openFullscreen}>X</button>
+					<button on:click={openFullscreen} style:pointer-events="auto">X</button>
 				</div>
 			</div>
 			{/if}
@@ -684,7 +823,7 @@
 		padding:0;
 	}
 	canvas {
-		border:solid 1px black;
+		/* border:solid 1px black; */
 	}
 	main {
 		overflow: hidden;
@@ -711,13 +850,10 @@
 		align-items:center;
 		font-family:monospace;
 		position:absolute;
-		pointer-events: none;
-	}
-	.gui-cover {
-		pointer-events: auto !important;
+		/* pointer-events: none; */
 	}
 	.cover {
-		background-color:#1a676f;
+		background-color:#193235;
 		width:100%;
 		height:100%;
 		display: flex;
@@ -744,29 +880,23 @@
 	.frame:fullscreen {
 		transform: rotate(90deg);
 	}
-	/* .frame > div {
-		position:absolute;
-		display: flex;
-		flex-direction: column;
-		border:solid 1px red;
-	} */
-	/* h1 {
-		color:black;
-		margin:0;
-	} */
 	button {
 		padding:0.5rem;
 		font-size:1rem;
 		background-color:rgba(0,0,0,0.5);
 		border-radius:0.2rem;
 		color:lightgrey;
-		font-family:monospace;
+	}
+	.start-button {
+		font-family: 'Bungee', sans-serif;
+		font-size:3rem;
+		cursor:pointer;
 	}
 	* {
 		white-space: normal;
 	}
 	article {
-		background-color:white;
+		background-color:#193235;
 		display:flex;
 		justify-content: center;
 		align-items: center;

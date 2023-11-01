@@ -15,12 +15,14 @@ export class Player {
 		this.y = y
 		this.w = w
 		this.h = h
+		this.anchorY = y
 		this.shadowx = x  + this.w*0.215
 		this.shadoww = this.w*0.435
 		this.vw = vw
 		this.vh = vh
 		this.sx = 0
 		this.sy = 0
+		this.hsx = 0
 		this.sw = 1754.28/6
 		this.sh = 911.37/3
 		this.cx1 = this.x + this.w*0.193
@@ -28,6 +30,9 @@ export class Player {
 		this.cy = this.y + this.h*0.805
 		this.img = new Image()
 		this.img.src = "/images/skater-01.svg"
+		this.hitimg = new Image()
+		this.hitimg.src = "/images/hit-obstacle-01.svg"
+		this.hit = false
 	}
 	draw() {
 		// this.c.beginPath()
@@ -44,12 +49,15 @@ export class Player {
 		// collision box
 		// this.c.beginPath()
 		// this.c.strokeStyle = "red"
-		// this.c.rect(this.cx1, this.y, this.cx2, this.h*0.805)
+		// this.c.rect(this.cx1, this.y, this.cx2, this.h)
 		// this.c.stroke()
 
 		// sprite
 		this.c.drawImage(this.img, this.sx, this.sy, this.sw, this.sh, this.x, this.y, this.w, this.h)
-
+		//hit sprite
+		if (this.hit) {
+			this.c.drawImage(this.hitimg, this.hsx, 0, 210, 210, this.x+(this.vh/9*0.5), this.y+(this.vh/9*0.2), this.vh/9*1.75, this.vh/9*1.75)
+		}
 		
 	}
     /**
@@ -104,7 +112,27 @@ export class Player {
 	 * @param {number} frame
      */
 	fall(frame) {
+		this.hit = true
 		this.sy = 2 * this.sh
+
+		if (this.y < this.anchorY) {
+			this.y+=2
+		}
+
+		if (frame < 2) {
+			this.hsx = 0
+		} else if (frame >= 2 && frame < 4) {
+			this.hsx = 210
+		} else if (frame >= 4 && frame < 12) {
+			this.hsx = 420
+		} else if (frame >= 12 && frame < 20) {
+			this.hsx = 630
+		}
+
+		if (frame >= 20) {
+			this.hit = false
+		}
+
 		if (frame < 20) {
 			this.sx = 1 * this.sw
 		} else if (frame >= 20 && frame < 40) {
@@ -148,7 +176,7 @@ export class Tali {
 		// this.c.rect(this.x, this.y, this.w, this.h)
 		// this.c.stroke()
 		// shadow
-		this.c.strokeStyle = "black"
+		this.c.strokeStyle = "#eeeeee"
 		this.c.lineWidth = 2;
 		this.c.beginPath()
 		this.c.moveTo(this.lx, this.ly);
@@ -220,8 +248,8 @@ export class Kunti {
 		this.vw = vw
 		this.vh = vh
 		this.sx = 0
-		this.sw = 818.68/4
-		this.sh = 228.419
+		this.sw = 1179.106/4
+		this.sh = 318.419
 		this.img = new Image()
 		this.img.src = "/images/kunti-01.svg"
 	}
