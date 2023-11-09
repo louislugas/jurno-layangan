@@ -68,8 +68,9 @@ export class Player {
 	 * @param {number} frame
      * @param {idle} jump
      * @param {boolean} idle
+	 * @param {number} multiplier
      */
-	update(ease, playery, distance, jump, idle, frame) {
+	update(ease, playery, distance, jump, idle, frame, multiplier) {
 		if(frame % 12 == 0) {
 			if(this.sx < this.sw*5) {
 				this.sx+=this.sw
@@ -79,9 +80,9 @@ export class Player {
 		}
 		if (!idle) {
 			if(jump) { // jump
-				this.y = playery-(distance*ease)
-				this.shadowx = (this.x+this.w*0.215)+(20*ease)
-				this.shadoww = (this.w*0.435)-(40*ease)
+				this.y = playery-((distance*ease)*multiplier)
+				this.shadowx = (this.x+this.w*0.215)+((20*ease)*multiplier)
+				this.shadoww = (this.w*0.435)-((40*ease)*multiplier)
 				this.sy = 1 * this.sh
 				this.cy = this.y + this.h*0.805
 				if (ease < 0.1) {
@@ -93,9 +94,9 @@ export class Player {
 				}
 				
 			} else { // false
-				this.y = (playery-distance)+(distance*ease)
-				this.shadowx = (((this.x+this.w*0.215))+20)-(20*ease)
-				this.shadoww = (((this.w*0.435))-40)+(40*ease)
+				this.y = (playery-distance)+((distance*ease)*multiplier)
+				this.shadowx = (((this.x+this.w*0.215))+20)-((20*ease)*multiplier)
+				this.shadoww = (((this.w*0.435))-40)+((40*ease)*multiplier)
 				this.sy = 1 * this.sh
 				this.sx = 4 * this.sw
 				this.cy = this.y + this.h*0.805
@@ -171,11 +172,6 @@ export class Tali {
 		this.lqx = this.lx + this.vh/9*1
 	}
 	draw() {
-		// this.c.beginPath()
-		// this.c.strokeStyle = "black"
-		// this.c.rect(this.x, this.y, this.w, this.h)
-		// this.c.stroke()
-		// shadow
 		this.c.strokeStyle = "#eeeeee"
 		this.c.lineWidth = 2;
 		this.c.beginPath()
@@ -192,18 +188,14 @@ export class Tali {
 	 * @param {number} frame
      * @param {idle} jump
      * @param {boolean} idle
+	 * @param {number} multiplier
      */
-	update(ease, playery, distance, jump, idle, frame) {
-		// if(frame % 72 == 60) {
-		// 	this.ly = this.y+this.vh/9*0.918
-		// } else if(frame % 36 == 24){
-		// 	this.ly = this.y+this.vh/9*1.041
-		// }
+	update(ease, playery, distance, jump, idle, frame, multiplier) {
 		if (!idle) {
 			if(jump) { // jump
-				this.ly = (this.y+ this.vh/9*0.918)-(distance*ease)				
+				this.ly = (this.y+ this.vh/9*0.918)-((distance*ease)*multiplier)				
 			} else { // false
-				this.ly = ((this.y+ this.vh/9*0.918)-distance)+(distance*ease)
+				this.ly = ((this.y+ this.vh/9*0.918)-distance)+((distance*ease)*multiplier)
 			}
 		} else {
 			this.ly = this.y+this.vh/9*0.918

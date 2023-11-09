@@ -11,8 +11,23 @@
 	import PopQuiz from '$lib/PopQuiz.svelte';
 	import GameOver from '$lib/GameOver.svelte';
 
+	import supabase from '$lib/db'
+
 	const easeOut = BezierEasing(0.33, 1, 0.68, 1);
 	const easeIn  = BezierEasing(0.32, 0, 0.67, 0);
+
+	let bgAudio, bonusAudio, jumpAudio, loseAudio
+	let /** @type {boolean} canvas */ audioPlay = true
+
+	function toggleSound() {
+		audioPlay = !audioPlay
+		if (!audioPlay) {
+			bgAudio.pause()
+			bgAudio.currentTime = 0
+		} else {
+			bgAudio.play()
+		}
+	}
 	
 	let 
 		/** @type {HTMLCanvasElement} canvas */ canvas,
@@ -32,7 +47,6 @@
 		// /** @type {Tree} background pohon */ tree,
 		/** @type {boolean} play state*/ play = false,
 		/** @type {boolean} jump state*/ jump,
-		/** @type {boolean} collision state*/ collide,
 		/** @type {number|undefined} startJump */ startJump = undefined,
 		/** @type {number|undefined} startFall */ startFall = undefined,
 		/** @type {number|undefined} startHit */ startHit = undefined,
@@ -68,7 +82,6 @@
 		/** @type {boolean} first time play or not*/ firstTime = false,
 		/** @type {boolean} landscape or portrait */ isPortrait = false,
         /** @type {boolean} fullscreen on portrait */ isPortraitFullscreen = false,
-		/** @type {boolean} add level condition */ addLevel = false,
 		/** @type {number} game frame count */ gameFrame = 0,
 		/** @type {number} speed multiplier for different platform calibration */ speedMultiplier = 0.035,
 		/** @type {number} obstacle distance multiplier 1*/ obsMultiplier = 15,
@@ -79,15 +92,27 @@
 		/** @type {number} hit bonus type */ hit = 0,
 		/** @type {boolean} popquiz condition */ popquiz = false,
 		/** @type {boolean} popquiz condition */ afterpopquiz = false,
-		/** @type {number} last timestep value */ lastTimestep,
-		/** @type {number} last elapsed value */ lastElapsed,
-		/** @type {number} last background speed parameter*/ lastBgSpeed,
-		/** @type {number} last obstacle speed parameter*/ lastObsSpeed,
-		/** @type {number} last far speed parameter*/ lastFarSpeed,
-		/** @type {boolean} add score condition*/ addScore,
 		/** @type {number} animation frame count*/ animFrame = 0,
 		/** @type {boolean} lose condition*/ lose = false,
-		/** @type {boolean} game ready mounted condition*/ gameReady = false
+		/** @type {boolean} game ready mounted condition*/ gameReady = false,
+		/** @type {number} delta time between timestep*/ deltaTime = 0,
+		/** @type {number} delta time multiplier*/ deltaTimeMultiplier = 1,
+		/** @type {number} previous time*/ prevTime = performance.now(),
+		/** @type {number} desired frame per second*/ fps = 60,
+		/** @type {number} frame interval count*/ frameInterval = 1000/fps
+
+	let leaderBoard
+
+	
+	async function getData() {
+			let { data, error } = await supabase
+				.from('haloween_score')
+				.select('name, score')
+			leaderBoard = data
+			if(error) {
+				window.alert(error.message+"\nPlease check your connection and refresh your page")
+			}
+    }
 
 
 	/**
@@ -99,6 +124,13 @@
 			if(e.code == "Space") {
 				if(!hitObstacle) {
 					if(!jump && idle) {
+						if (audioPlay) {
+							jumpAudio.play()
+							setTimeout(() => {
+								jumpAudio.pause()
+								jumpAudio.currentTime = 0
+							},200)
+						}
 						jump = true	
 						idle = false
 					}
@@ -108,16 +140,21 @@
 	}
 
 	function handleClick() {
-		
 		if(play) {
 			if(!hitObstacle) {
 				if(!jump && idle) {
+					if (audioPlay) {
+						jumpAudio.play()
+						setTimeout(() => {
+							jumpAudio.pause()
+							jumpAudio.currentTime = 0
+						},200)
+					}
 					jump = true	
 					idle = false
 				}
 			}
 		}
-		a++
 	}
 
 	// function resizeButton() {
@@ -173,6 +210,7 @@
 	}
 
 	function initAnimation() {
+
 		// console.log("init")
 		if(viewportWidth/viewportHeight > 16/9) {
 			canvas.width = viewportHeight/9*16
@@ -186,6 +224,10 @@
 		ctx = canvas.getContext("2d")
 
 		if (ctx) {
+			if (audioPlay) {
+				bgAudio.play()
+			}
+			
 			bgSpeed = canvas.width/9*speedMultiplier
 			obsSpeed = bgSpeed + (bgSpeed/2)
 			farSpeed = bgSpeed/4
@@ -259,6 +301,8 @@
 				trotoirArray.push(trotoir)
 			}
 
+			
+
 			trotoirArray.forEach((d) => {
 				d.draw()
 			})
@@ -286,7 +330,28 @@
 		firstTime = true
 	}
 
-	onMount(() => {
+	onMount(async () => {
+
+		bgAudio = new Audio()
+		bgAudio.src = "audio/audio_game_haloween.mp3"
+		bgAudio.loop = true
+		bgAudio.volume = 0.3
+		bgAudio.pause()
+		bgAudio.currentTime = 0
+
+		loseAudio = new Audio()
+		loseAudio.src = "audio/audio_lose.mp3"
+		loseAudio.volume = 0.5
+
+		jumpAudio = new Audio()
+		jumpAudio.src = "audio/audio_jump.mp3"
+
+		bonusAudio = new Audio()
+		bonusAudio.src = "audio/audio_hit_bonus.mp3"
+
+		await getData()
+		// console.log(leaderBoard)
+
 		if(screen.orientation.type == "landscape-primary") {
 			isPortrait = false
 		} else if (screen.orientation.type == "portrait-primary") {
@@ -299,6 +364,13 @@
 
 	 // @ts-ignore
 	 function animate(timestep) {
+		if (timestep == undefined) {
+			timestep = 0
+		}
+		deltaTime = timestep - prevTime
+		deltaTimeMultiplier = deltaTime/frameInterval
+
+		// console.log(ctx)
 		if (!hitObstacle) {
 			score += 0.05
 		}
@@ -325,7 +397,7 @@
 			}
 
 			cityArray.forEach((d) => {
-				d.update(farSpeed)
+				d.update(farSpeed * deltaTimeMultiplier)
 				d.draw()
 			})
 
@@ -333,13 +405,18 @@
 			
 
 			trotoirArray.forEach((d) => {
-				d.update(obsSpeed * 1.2)
+				d.update(obsSpeed * 1.2 * deltaTimeMultiplier)
 				d.draw()
 			})
 		
 			if(idle) { // idle
 				// console.log("idle")
 				if (hitObstacle) {
+					if (audioPlay) {
+						bgAudio.pause()
+						loseAudio.play()
+					}
+					
 					if (startHit == undefined) {
 							startHit = gameFrame
 						}
@@ -369,6 +446,8 @@
 			else {
 				if (jump) { // jump
 					if (hitObstacle) {
+						bgAudio.pause()
+						loseAudio.play()
 						jump = false
 						startJump = undefined
 						startFall = undefined
@@ -378,8 +457,9 @@
 						startJump = animFrame
 					} else {
 						elapsedTime = animFrame - startJump
-						if (elapsedTime < duration) {
-							let ease = easeOut(elapsedTime/duration)
+						let dur = duration
+						if (elapsedTime < dur) {
+							let ease = easeOut(elapsedTime/dur)
 							tali.update(ease, playery, distance, jump, idle, gameFrame)
 							tali.draw()
 							player.update(ease, playery, distance, jump, idle, gameFrame)
@@ -398,8 +478,9 @@
 						if (animFrame) {
 							elapsedTime = animFrame - startFall
 							// console.log(elapsedTime)
-							if (elapsedTime < duration) {
-								let ease = easeIn(elapsedTime/duration)
+							let dur = duration * deltaTimeMultiplier
+							if (elapsedTime < dur) {
+								let ease = easeIn(elapsedTime/dur)
 								tali.update(ease, playery, distance, jump, idle, gameFrame)
 								tali.draw()
 								player.update(ease, playery, distance, jump, idle, gameFrame)
@@ -431,29 +512,9 @@
 			}
 			
 			nearBgArray.forEach((d) => {
-				d.update(bgSpeed)
+				d.update(bgSpeed* deltaTimeMultiplier)
 				d.draw()
 			})
-
-			// let tr = treeArray.length
-			// // console.log(tr)
-			// if ( tr == 10 ) {
-			// 	if(treeArray[tr-1].x < canvas.width) {
-			// 		for(let i = 0; i< 10; i++) {
-			// 			tree = new Tree(ctx, i * 600 + Math.random() * 200 +(canvas.width + 200), canvas.height/3*2, canvas.width, canvas.height, i)
-			// 			treeArray.push(tree)
-			// 		}
-			// 	}
-			// } else if ( tr == 20 ) {
-			// 	if(treeArray[tr/2 -1].x + canvas.height/9*1.4 < 0) {
-			// 		treeArray.splice(0,10)
-			// 	}
-			// }
-
-			// treeArray.forEach((d) => {
-			// 	d.update(bgSpeed)
-			// 	d.draw()
-			// })
 
 			let t = trotoirArray.length
 			if ( t == 100 ) {
@@ -490,9 +551,6 @@
 						} else {
 							obsRndMultiplier = 6
 						}
-						// console.log("level ", level)
-						// console.log("obstacle ",obsMultiplier, obsRndMultiplier)
-						// console.log("speed ", bgSpeed, obsSpeed, farSpeed)
 					}
 					for(let i = 0; i< 10; i++) {
 						obs = new Obstacle(ctx, canvas.width + i * canvas.height/9*obsMultiplier + Math.random() * canvas.height/9*obsRndMultiplier + canvas.width, playery, canvas.width, canvas.height, i)
@@ -509,13 +567,12 @@
 				if (player.cx1 + player.cx2 > d.x && player.cx1 + player.cx2 < d.x + d.w && d.topY < player.cy) {
 					hitObstacle = true
 				}
-				d.update(obsSpeed, gameFrame)
+				d.update(obsSpeed* deltaTimeMultiplier, gameFrame)
 				d.draw()
 			})
 
 			
 			let b = bonusArray.length
-			// console.log(b)
 			if ( b == 5 ) {
 				if(bonusArray[b-1].x < canvas.width) {
 					for(let i = 0; i< 5; i++) {
@@ -533,6 +590,9 @@
 				if (player.cx1 + player.cx2 > d.cx && player.cx1 + player.cx2 < d.cx + d.cw && d.cy + d.ch > player.y) {
 					if(!hitBonus) {
 						if (d.type == "bon-1") {
+							if (audioPlay) {
+								bonusAudio.play()
+							}
 							d.opacity1 = 0
 							score += 10
 							hitBonus = true
@@ -553,15 +613,36 @@
 					}
 					
 				}
-				d.update(obsSpeed, gameFrame, hitBonus)
+				d.update(obsSpeed* deltaTimeMultiplier, gameFrame, hitBonus)
 				d.draw()
 			})
 			
 			animFrame++
 			gameFrame++
-			lastTimestep = timestep
+
+			prevTime = timestep
+
+			// console.log(deltaTimeMultiplier, "delta time multiplier")
 			animId = requestAnimationFrame(animate)
 		}
+	}
+
+	function restart() {
+		// console.log("restart")
+		ctx.clearRect(0,0,canvas.width, canvas.height)
+		animFrame = 0
+		score = 0
+		bgSpeed = canvas.width/9*speedMultiplier
+		obsSpeed = bgSpeed + (bgSpeed/2)
+		farSpeed = bgSpeed/4
+		lose = false
+		hitObstacle = false
+		trotoirArray = []
+		obstacleArray = []
+		bonusArray = []
+		cityArray = []
+		initAnimation()
+		animate()
 	}
 
 	function openFullscreen() {
@@ -586,11 +667,11 @@
 					if (article.requestFullscreen) {
 						article.requestFullscreen();
 					} 
-					// else if (article.webkitRequestFullscreen) { /* Safari */
-					// 	article.webkitRequestFullscreen();
-					// } else if (article.msRequestFullscreen) { /* IE11 */
-					// 	article.msRequestFullscreen();
-					// }
+					else if (article.webkitRequestFullscreen) { /* Safari */
+						article.webkitRequestFullscreen();
+					} else if (article.msRequestFullscreen) { /* IE11 */
+						article.msRequestFullscreen();
+					}
 					article.style.transform = "rotate(90deg)"
 					// @ts-ignore
 					screen.orientation.lock("landscape-primary");
@@ -653,6 +734,9 @@
 		}, 200)
 	}
 	$: if(afterpopquiz && !popquiz) {
+		if (audioPlay) {
+			bonusAudio.play()
+		}
 		score +=50
 		animate()
 		afterpopquiz = false
@@ -661,6 +745,7 @@
 	$: if (lose) {
 		setTimeout(() => {
 			cancelAnimationFrame(animId)
+			hitObstacle = false
 		},1000)
 		
 	}
@@ -676,6 +761,7 @@
 
 <svelte:head>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+	
 	
 	<link rel="preload" as="image" href="/images/skater-01.svg">
 	<link rel="preload" as="image" href="/images/kunti-01.svg">
@@ -743,7 +829,7 @@
                 <h2>w:{canvas.width} x h:{canvas.height}</h2>
             {/if} -->
 			{#if play}
-				<Gui {score} {level} {hitObstacle} {hitBonus}/>
+				<Gui {score} {level} {hitObstacle} {hitBonus} {viewportHeight} {viewportWidth}/>
 			{/if}
 		</div>
 		{#if popquiz}
@@ -759,25 +845,25 @@
 			
 		</div>
 		{/if}
-		{#if lose}
-		<div 
-			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
-			class="gui">
-            	<!-- <h1 style:margin="0">Mobile</h1>
-            {#if canvas}
-                <h2>w:{canvas.width} x h:{canvas.height}</h2>
-            {/if} -->
-			
-				<GameOver />
-			
-		</div>
+		{#if play && lose}
+			<div 
+				style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
+				class="gui">
+					<!-- <h1 style:margin="0">Mobile</h1>
+				{#if canvas}
+					<h2>w:{canvas.width} x h:{canvas.height}</h2>
+				{/if} -->
+				
+					<GameOver bind:score {leaderBoard} {restart} {viewportHeight} {viewportWidth}/>
+				
+			</div>
 		{/if}
 		<div 
 			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
 			class="gui gui-cover" style:pointer-events={play ? "none" : "auto"}>
 			{#if !play}
 			<div class="cover">
-				<h1>GAME COVER</h1>
+				<!-- <h1>GAME COVER</h1> -->
 				<div 
 					style:justify-content="center"
 					style:align-items="center"
@@ -786,17 +872,41 @@
 				{#if gameReady}
 					{#if !play}
 						{#if !isPortrait}
+							<button class="start-button" on:click={toggleSound}>
+							{#if audioPlay}
+								<span class="material-symbols-outlined">
+								volume_up
+								</span>
+							{:else}
+								<span class="material-symbols-outlined">
+								volume_off
+								</span>
+							{/if}
+							</button>
 							<button class="start-button" on:click={openFullscreen}>Play</button>
 						{:else if isPortrait}
 							{#if !isPortraitFullscreen}
 								<button class="start-button" on:click={openFullscreen}>Go FullScreen</button>
 							{:else if isPortraitFullscreen}
+								<button class="start-button" on:click={toggleSound}>
+									{#if audioPlay}
+										<span class="material-symbols-outlined">
+										volume_up
+										</span>
+									{:else}
+										<span class="material-symbols-outlined">
+										volume_off
+										</span>
+									{/if}
+								</button>
 								<button class="start-button" on:click={openFullscreen}>Play</button>
 							{/if}
 						{/if}
 					{:else}
 					<button on:click={openFullscreen}>X</button>
 					{/if}
+				{:else}
+				<h1>Loading...</h1>
 				{/if}
 					
 				</div>
@@ -808,7 +918,25 @@
 					style:align-items="flex-start"
 					class="buttonContainer"
 				>
-					<button on:click={openFullscreen} style:pointer-events="auto">X</button>
+					<button on:click={toggleSound} 
+					style:margin-top="1.5rem"
+					style:pointer-events="auto"
+					>
+						{#if audioPlay}
+							<span class="material-symbols-outlined">
+							volume_up
+							</span>
+						{:else}
+							<span class="material-symbols-outlined">
+							volume_off
+							</span>
+						{/if}
+					</button>
+					<button on:click={openFullscreen} 
+					style:pointer-events="auto"
+					style:margin-right="1rem"
+					style:margin-top="1.5rem"
+					>X</button>
 				</div>
 			</div>
 			{/if}
@@ -818,9 +946,25 @@
 </main>
 
 <style>
+	* {
+		-webkit-tap-highlight-color: transparent;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		-khtml-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;	
+	}
 	:global(body, html) {
 		margin:0;
 		padding:0;
+	}
+	.material-symbols-outlined {
+		font-variation-settings:
+		'FILL' 0,
+		'wght' 400,
+		'GRAD' 0,
+		'opsz' 24
 	}
 	canvas {
 		/* border:solid 1px black; */

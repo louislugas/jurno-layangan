@@ -3,6 +3,7 @@
     export let level = 0
     export let hitObstacle = false
     export let hitBonus = false
+    export let viewportHeight, viewportWidth
 </script>
 
 <!-- <section class="debug">
@@ -18,11 +19,18 @@
     >bonus hit:{hitBonus}</p>
 </section> -->
 <section class="score">
-    <h1>
+    <h1
+        style:font-size={viewportWidth > 800 ? "3rem" : "1rem"}
+    >
         {#each Array(7-Math.round(score).toLocaleString().length) as _ }
-            <span>0</span>
+            <span
+                style:text-shadow={viewportWidth > 800 ? "4px 4px #051519" : "2px 2px #051519"}
+            >0</span>
         {/each}
-        <span style:margin-left="-0.6rem">{Math.round(score)}</span>
+        <span 
+            style:margin-left={viewportWidth > 800 ? "-0.6rem" : "-0.4rem"}
+            style:text-shadow={viewportWidth > 800 ? "4px 4px #051519" : "2px 2px #051519"}
+            >{Math.round(score)}</span>
     </h1>
 </section>
 
@@ -52,7 +60,6 @@
     .score > h1 {
         margin-left:2rem;
         font-size: 3rem;
-        text-shadow: 4px 4px #051519;
     }
     p {
         margin:0;
