@@ -72,7 +72,7 @@
     >{Math.round(score)}</h1>
     {#if Math.round(score) > Math.min(...scoreArray)}
     <div class="input">
-        <input type="text" placeholder="your name" bind:value={inputName}>
+        <input type="text" placeholder="your name" bind:value={inputName} disabled={submitdisable}>
         <button class="submit"on:click={insertData} disabled={submitdisable}>Submit</button>
     </div>    
     {/if}

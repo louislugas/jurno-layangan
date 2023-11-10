@@ -1,9 +1,18 @@
 <script>
+	import { onMount } from "svelte";
+
     export let score = 0
     export let level = 0
     export let hitObstacle = false
     export let hitBonus = false
     export let viewportHeight, viewportWidth
+    let help = true
+
+    onMount(() => {
+        setTimeout(() => {
+            help = false
+        }, 5000)
+    })
 </script>
 
 <!-- <section class="debug">
@@ -33,6 +42,11 @@
             >{Math.round(score)}</span>
     </h1>
 </section>
+<section class="help"
+    style:display={help ? "flex" : "none"}
+>
+    <h1 class="help-text">press <strong>space</strong> or <strong>tap</strong> to jump</h1>
+</section>
 
 <style>
     section {
@@ -44,6 +58,9 @@
         justify-content: flex-start;
         pointer-events: none;
         position: absolute;
+    }
+    .help {
+        justify-content:center;
     }
     .debug {
         /* display:none; */
@@ -66,5 +83,14 @@
         background-color: antiquewhite;
         font-size: 1rem;
         padding:0.2rem;
+    }
+    .help-text {
+        color:white;
+        font-size: 1.5rem;
+        text-shadow:2px 2px black;
+
+    }
+    strong {
+        color:#f19d3d;
     }
 </style>
