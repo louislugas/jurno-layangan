@@ -25,7 +25,9 @@
 			bgAudio.pause()
 			bgAudio.currentTime = 0
 		} else {
-			bgAudio.play()
+			if (play) {
+				bgAudio.play()
+			}
 		}
 	}
 	
@@ -94,12 +96,7 @@
 		/** @type {boolean} popquiz condition */ afterpopquiz = false,
 		/** @type {number} animation frame count*/ animFrame = 0,
 		/** @type {boolean} lose condition*/ lose = false,
-		/** @type {boolean} game ready mounted condition*/ gameReady = false,
-		/** @type {number} delta time between timestep*/ deltaTime = 0,
-		/** @type {number} delta time multiplier*/ deltaTimeMultiplier = 1,
-		/** @type {number} previous time*/ prevTime = performance.now(),
-		/** @type {number} desired frame per second*/ fps = 60,
-		/** @type {number} frame interval count*/ frameInterval = 1000/fps
+		/** @type {boolean} game ready mounted condition*/ gameReady = false
 
 	let leaderBoard
 
@@ -364,12 +361,6 @@
 
 	 // @ts-ignore
 	 function animate(timestep) {
-		if (timestep == undefined) {
-			timestep = 0
-		}
-		deltaTime = timestep - prevTime
-		deltaTimeMultiplier = deltaTime/frameInterval
-
 		// console.log(ctx)
 		if (!hitObstacle) {
 			score += 0.05
@@ -397,7 +388,7 @@
 			}
 
 			cityArray.forEach((d) => {
-				d.update(farSpeed * deltaTimeMultiplier)
+				d.update(farSpeed)
 				d.draw()
 			})
 
@@ -405,7 +396,7 @@
 			
 
 			trotoirArray.forEach((d) => {
-				d.update(obsSpeed * 1.2 * deltaTimeMultiplier)
+				d.update(obsSpeed * 1.2)
 				d.draw()
 			})
 		
@@ -446,8 +437,10 @@
 			else {
 				if (jump) { // jump
 					if (hitObstacle) {
-						bgAudio.pause()
-						loseAudio.play()
+						if(audioPlay) {
+							bgAudio.pause()
+							loseAudio.play()
+						}
 						jump = false
 						startJump = undefined
 						startFall = undefined
@@ -457,9 +450,8 @@
 						startJump = animFrame
 					} else {
 						elapsedTime = animFrame - startJump
-						let dur = duration
-						if (elapsedTime < dur) {
-							let ease = easeOut(elapsedTime/dur)
+						if (elapsedTime < duration) {
+							let ease = easeOut(elapsedTime/duration)
 							tali.update(ease, playery, distance, jump, idle, gameFrame)
 							tali.draw()
 							player.update(ease, playery, distance, jump, idle, gameFrame)
@@ -478,9 +470,8 @@
 						if (animFrame) {
 							elapsedTime = animFrame - startFall
 							// console.log(elapsedTime)
-							let dur = duration * deltaTimeMultiplier
-							if (elapsedTime < dur) {
-								let ease = easeIn(elapsedTime/dur)
+							if (elapsedTime < duration) {
+								let ease = easeIn(elapsedTime/duration)
 								tali.update(ease, playery, distance, jump, idle, gameFrame)
 								tali.draw()
 								player.update(ease, playery, distance, jump, idle, gameFrame)
@@ -512,7 +503,7 @@
 			}
 			
 			nearBgArray.forEach((d) => {
-				d.update(bgSpeed* deltaTimeMultiplier)
+				d.update(bgSpeed)
 				d.draw()
 			})
 
@@ -551,6 +542,9 @@
 						} else {
 							obsRndMultiplier = 6
 						}
+						// console.log("level ", level)
+						// console.log("obstacle ",obsMultiplier, obsRndMultiplier)
+						// console.log("speed ", bgSpeed, obsSpeed, farSpeed)
 					}
 					for(let i = 0; i< 10; i++) {
 						obs = new Obstacle(ctx, canvas.width + i * canvas.height/9*obsMultiplier + Math.random() * canvas.height/9*obsRndMultiplier + canvas.width, playery, canvas.width, canvas.height, i)
@@ -567,12 +561,13 @@
 				if (player.cx1 + player.cx2 > d.x && player.cx1 + player.cx2 < d.x + d.w && d.topY < player.cy) {
 					hitObstacle = true
 				}
-				d.update(obsSpeed* deltaTimeMultiplier, gameFrame)
+				d.update(obsSpeed, gameFrame)
 				d.draw()
 			})
 
 			
 			let b = bonusArray.length
+			// console.log(b)
 			if ( b == 5 ) {
 				if(bonusArray[b-1].x < canvas.width) {
 					for(let i = 0; i< 5; i++) {
@@ -613,16 +608,12 @@
 					}
 					
 				}
-				d.update(obsSpeed* deltaTimeMultiplier, gameFrame, hitBonus)
+				d.update(obsSpeed, gameFrame, hitBonus)
 				d.draw()
 			})
 			
 			animFrame++
 			gameFrame++
-
-			prevTime = timestep
-
-			// console.log(deltaTimeMultiplier, "delta time multiplier")
 			animId = requestAnimationFrame(animate)
 		}
 	}
@@ -663,7 +654,8 @@
 				}			
 			} 
 			else if (screen.orientation.type == "portrait-primary" && play == false) { // mobile
-				if (article != document.fullscreenElement) {
+
+				if (document != document.fullscreenElement) {
 					if (article.requestFullscreen) {
 						article.requestFullscreen();
 					} 
@@ -812,6 +804,7 @@
 <main>
 
 	<article bind:this={article}>
+	<div class="backdrop"></div>
 		
 		<div 
 			style:height={viewportWidth/viewportHeight > 16/9 ? "100vh" : viewportWidth/16*9 + "px"}	
@@ -854,7 +847,13 @@
 					<h2>w:{canvas.width} x h:{canvas.height}</h2>
 				{/if} -->
 				
-					<GameOver bind:score {leaderBoard} {restart} {viewportHeight} {viewportWidth}/>
+					<GameOver 
+						bind:score 
+						{leaderBoard} 
+						{restart}
+						{viewportHeight} 
+						{viewportWidth} 
+					/>
 				
 			</div>
 		{/if}
@@ -864,15 +863,13 @@
 			{#if !play}
 			<div class="cover">
 				<!-- <h1>GAME COVER</h1> -->
-				<div 
-					style:justify-content="center"
-					style:align-items="center"
-					class="buttonContainer"
-				>
+				<img class="hero" src="./images/tikunti_splash_screen.png" alt="hero splash screen tikunti">
+				<div class="buttonContainer">
+				
 				{#if gameReady}
 					{#if !play}
 						{#if !isPortrait}
-							<button class="start-button" on:click={toggleSound}>
+							<button class="start-button sound-button" on:click={toggleSound}>
 							{#if audioPlay}
 								<span class="material-symbols-outlined">
 								volume_up
@@ -886,9 +883,9 @@
 							<button class="start-button" on:click={openFullscreen}>Play</button>
 						{:else if isPortrait}
 							{#if !isPortraitFullscreen}
-								<button class="start-button" on:click={openFullscreen}>Go FullScreen</button>
+								<button class="start-button full-button" on:click={openFullscreen}>Go FullScreen</button>
 							{:else if isPortraitFullscreen}
-								<button class="start-button" on:click={toggleSound}>
+								<button class="start-button sound-button" on:click={toggleSound}>
 									{#if audioPlay}
 										<span class="material-symbols-outlined">
 										volume_up
@@ -903,10 +900,10 @@
 							{/if}
 						{/if}
 					{:else}
-					<button on:click={openFullscreen}>X</button>
+					<button class="start-button" on:click={openFullscreen}>X</button>
 					{/if}
 				{:else}
-				<h1>Loading...</h1>
+				<h1 class="loading-text">Loading...</h1>
 				{/if}
 					
 				</div>
@@ -918,25 +915,37 @@
 					style:align-items="flex-start"
 					class="buttonContainer"
 				>
-					<button on:click={toggleSound} 
-					style:margin-top="1.5rem"
-					style:pointer-events="auto"
-					>
-						{#if audioPlay}
+					{#if !lose}
+						<button on:click={toggleSound} 
+							class="start-button sound-button"
+							style:border-radius="50%"
+							style:margin-right="0.5rem"
+							style:margin-top="1.5rem"
+							style:pointer-events="auto"
+						>
+							{#if audioPlay}
+								<span class="material-symbols-outlined">
+								volume_up
+								</span>
+							{:else}
+								<span class="material-symbols-outlined">
+								volume_off
+								</span>
+							{/if}
+						</button>
+						<button on:click={openFullscreen} 
+							class="start-button"
+							style:border-radius="50%"
+							style:aspect-ratio="1"
+							style:pointer-events="auto"
+							style:margin-right="1rem"
+							style:margin-top="1.5rem"
+						>
 							<span class="material-symbols-outlined">
-							volume_up
+								close
 							</span>
-						{:else}
-							<span class="material-symbols-outlined">
-							volume_off
-							</span>
-						{/if}
-					</button>
-					<button on:click={openFullscreen} 
-					style:pointer-events="auto"
-					style:margin-right="1rem"
-					style:margin-top="1.5rem"
-					>X</button>
+						</button>
+					{/if}
 				</div>
 			</div>
 			{/if}
@@ -960,17 +969,24 @@
 		padding:0;
 	}
 	.material-symbols-outlined {
+		font-size: 2.5rem;
 		font-variation-settings:
 		'FILL' 0,
 		'wght' 400,
 		'GRAD' 0,
-		'opsz' 24
+		'opsz' 24,
 	}
 	canvas {
 		/* border:solid 1px black; */
 	}
 	main {
 		overflow: hidden;
+	}
+	.backdrop {
+		width:100%;
+		height:100%;
+		background-color:#193235a1;
+		backdrop-filter: blur(25px);
 	}
 	.frame {
 		/* background-color:cornflowerblue; */
@@ -997,7 +1013,6 @@
 		/* pointer-events: none; */
 	}
 	.cover {
-		background-color:#193235;
 		width:100%;
 		height:100%;
 		display: flex;
@@ -1011,6 +1026,8 @@
 		height:100%;
 		display:flex;
 		position:absolute;
+		justify-content: center;
+		align-items: center;
 	}
 	.fullscreen {
 		width:100%;
@@ -1035,17 +1052,43 @@
 		font-family: 'Bungee', sans-serif;
 		font-size:3rem;
 		cursor:pointer;
+		background-color: #f19d3d;
+		color:#04152a;
+		height:4rem;
+		line-height: 3rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.sound-button {
+		aspect-ratio: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.loading-text {
+		font-size: 2rem;
+	}
+	.full-button {
+		font-size:1rem;
 	}
 	* {
 		white-space: normal;
 	}
 	article {
 		background-color:#193235;
+		/* background-image: url("./images/tikunti_splash_screen.png"); */
+		background-position: center;
+		backdrop-filter: blur(10px);
 		display:flex;
 		justify-content: center;
 		align-items: center;
 		height:100vh;
 		position:relative;
+	}
+	.hero {
+		width:100%;
+		position:absolute;
 	}
 	:root {
 		--divider-color:#1a676f;

@@ -654,14 +654,15 @@
 				}			
 			} 
 			else if (screen.orientation.type == "portrait-primary" && play == false) { // mobile
-				if (article != document.fullscreenElement) {
-					if (article.requestFullscreen) {
-						article.requestFullscreen();
+
+				if (document != document.fullscreenElement) {
+					if (document.requestFullscreen) {
+						document.requestFullscreen();
 					} 
-					else if (article.webkitRequestFullscreen) { /* Safari */
-						article.webkitRequestFullscreen();
-					} else if (article.msRequestFullscreen) { /* IE11 */
-						article.msRequestFullscreen();
+					else if (document.webkitRequestFullscreen) { /* Safari */
+						document.webkitRequestFullscreen();
+					} else if (document.msRequestFullscreen) { /* IE11 */
+						document.msRequestFullscreen();
 					}
 					article.style.transform = "rotate(90deg)"
 					// @ts-ignore
